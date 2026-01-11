@@ -2337,95 +2337,76 @@ function StopBanging()
     Banging = false
 end
 
-
-
-
-
-
-
-
-
-
-
 -- ============================================
--- VISUALS TAB (ADVANCED ESP)
--- Füge diesen Code NACH dem FPS Tab hinzu
+-- SPIN SECTION
 -- ============================================
 
-local VisualsTab = Window:CreateTab("Visuals", 4483362458)
+local SpinSection = TrollTab:CreateSection("Spin Controls")
 
--- ESP Variablen
-local ESPStorage = {}
-local ESPSettings = {
-    Enabled = false,
-    TeamCheck = false,
-    
-    -- Box ESP
-    BoxEnabled = true,
-    BoxColor = Color3.fromRGB(255, 255, 255),
-    BoxThickness = 2,
-    BoxTransparency = 1,
-    BoxFilled = false,
-    BoxFilledTransparency = 0.2,
-    
-    -- Name ESP
-    NameEnabled = true,
-    NameColor = Color3.fromRGB(255, 255, 255),
-    NameSize = 16,
-    ShowDisplayName = true,
-    
-    -- Health ESP
-    HealthEnabled = true,
-    HealthBarEnabled = true,
-    HealthTextEnabled = true,
-    HealthBarPosition = "Left",
-    
-    -- Distance ESP
-    DistanceEnabled = true,
-    DistanceColor = Color3.fromRGB(255, 255, 255),
-    
-    -- Tracer ESP
-    TracerEnabled = false,
-    TracerColor = Color3.fromRGB(255, 255, 255),
-    TracerThickness = 1,
-    TracerPosition = "Bottom",
-    
-    -- Chams (Highlight)
-    ChamsEnabled = false,
-    ChamsFillColor = Color3.fromRGB(255, 0, 0),
-    ChamsOutlineColor = Color3.fromRGB(255, 255, 255),
-    ChamsFillTransparency = 0.5,
-    ChamsOutlineTransparency = 0,
-    
-    -- Misc
-    RenderDistance = 1000
-}
-
--- ============================================
--- MAIN ESP SECTION
--- ============================================
-
-local MainESPSection = VisualsTab:CreateSection("🎯 Main ESP")
-
-local ESPMasterToggle = VisualsTab:CreateToggle({
-    Name = "ESP aktivieren",
-    CurrentValue = false,
-    Flag = "ESPMasterToggle",
+local SpinSpeedSlider = TrollTab:CreateSlider({
+    Name = "Spin Geschwindigkeit",
+    Range = {1, 50},
+    Increment = 0.01,
+    CurrentValue = 0.05,
+    Flag = "SpinSpeedSlider",
     Callback = function(Value)
-        ESPSettings.Enabled = Value
+        SpinSpeed = Value
+    end
+})
+
+local SpinToggle = TrollTab:CreateToggle({
+    Name = "Spin aktivieren",
+    CurrentValue = false,
+    Flag = "SpinToggle",
+    Callback = function(Value)
+        SpinEnabled = Value
         if Value then
-            InitializeESP()
+            local player = game.Players.LocalPlayer
+            if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
+                SpinEnabled = false
+                Rayfield:Notify({
+                    Title = "Fehler",
+                    Content = "Character nicht gefunden",
+                    Duration = 3,
+                    Image = 4483362458
+                })
+                return
+            end
+            
+            -- Spin-Loop starten
+            local angle = 0
+            SpinConnection = game:GetService("RunService").Heartbeat:Connect(function()
+                if not SpinEnabled then return end
+                
+                local char = player.Character
+                if char and char:FindFirstChild("HumanoidRootPart") then
+                    angle = angle + SpinSpeed
+                    local hrp = char.HumanoidRootPart
+                    hrp.CFrame = hrp.CFrame * CFrame.Angles(0, SpinSpeed, 0)
+                else
+                    SpinEnabled = false
+                    if SpinConnection then
+                        SpinConnection:Disconnect()
+                    end
+                end
+            end)
+            
             Rayfield:Notify({
-                Title = "ESP aktiviert",
-                Content = "Alle ESP Features sind jetzt aktiv",
+                Title = "Spin aktiviert",
+                Content = "Dein Character dreht sich jetzt!",
                 Duration = 3,
                 Image = 4483362458
             })
         else
-            ClearAllESP()
+            -- Spin stoppen
+            if SpinConnection then
+                SpinConnection:Disconnect()
+                SpinConnection = nil
+            end
+            
             Rayfield:Notify({
-                Title = "ESP deaktiviert",
-                Content = "Alle ESP Features sind jetzt inaktiv",
+                Title = "Spin deaktiviert",
+                Content = "Spin-Modus ausgeschaltet",
                 Duration = 3,
                 Image = 4483362458
             })
@@ -2433,632 +2414,202 @@ local ESPMasterToggle = VisualsTab:CreateToggle({
     end
 })
 
-local TeamCheckToggle = VisualsTab:CreateToggle({
-    Name = "Team Check",
-    CurrentValue = false,
-    Flag = "ESPTeamCheckToggle",
-    Callback = function(Value)
-        ESPSettings.TeamCheck = Value
-    end
-})
+-- Info Section für Spin
+local SpinInfoSection = TrollTab:CreateSection("ℹ️ Spin Information")
+local SpinInfoLabel = TrollTab:CreateLabel("💡 Dein Character dreht sich um die eigene Achse")
+local SpinInfo2Label = TrollTab:CreateLabel("⚙️ Passe die Geschwindigkeit mit dem Slider an")
 
-local MaxDistanceSlider = VisualsTab:CreateSlider({
-    Name = "Max Render Distance",
-    Range = {100, 5000},
-    Increment = 50,
-    CurrentValue = 1000,
-    Flag = "MaxDistanceSlider",
-    Callback = function(Value)
-        ESPSettings.RenderDistance = Value
-    end
-})
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 -- ============================================
--- BOX ESP SECTION
+-- HVH TAB
 -- ============================================
 
-local BoxESPSection = VisualsTab:CreateSection("📦 Box ESP")
+local HvHTab = Window:CreateTab("HvH", 4483362458)
 
-local BoxToggle = VisualsTab:CreateToggle({
-    Name = "Box ESP",
-    CurrentValue = true,
-    Flag = "BoxToggle",
-    Callback = function(Value)
-        ESPSettings.BoxEnabled = Value
-    end
-})
+-- Anti-Headsit Variablen
+local AntiHeadsitEnabled = false
+local AntiHeadsitConnection = nil
+local HeadTeleportDistance = 5
+local TeleportInterval = 0.3
+local ShakeIntensity = 30
+local AntiHeadsitMethod = "Teleport" -- "Teleport", "Shake", "Both"
 
-local BoxFilledToggle = VisualsTab:CreateToggle({
-    Name = "Gefüllte Box",
-    CurrentValue = false,
-    Flag = "BoxFilledToggle",
-    Callback = function(Value)
-        ESPSettings.BoxFilled = Value
-    end
-})
+-- ============================================
+-- ANTI-HEADSIT SECTION
+-- ============================================
 
-local BoxThicknessSlider = VisualsTab:CreateSlider({
-    Name = "Box Dicke",
-    Range = {1, 5},
-    Increment = 1,
-    CurrentValue = 2,
-    Flag = "BoxThicknessSlider",
-    Callback = function(Value)
-        ESPSettings.BoxThickness = Value
-    end
-})
+local AntiHeadsitSection = HvHTab:CreateSection("Anti-Headsit Protection")
 
-local BoxColorDropdown = VisualsTab:CreateDropdown({
-    Name = "Box Farbe",
-    Options = {"Weiß", "Rot", "Grün", "Blau", "Gelb", "Pink", "Lila", "Orange", "Cyan"},
-    CurrentOption = "Weiß",
-    Flag = "BoxColorDropdown",
+local AntiHeadsitMethodDropdown = HvHTab:CreateDropdown({
+    Name = "Schutzmethode",
+    Options = {"Teleport (Kopf wegbewegen)", "Shake (Kopf schütteln)", "Both (Beides)"},
+    CurrentOption = "Teleport (Kopf wegbewegen)",
+    Flag = "AntiHeadsitMethodDropdown",
     Callback = function(Option)
-        local colors = {
-            ["Weiß"] = Color3.fromRGB(255, 255, 255),
-            ["Rot"] = Color3.fromRGB(255, 0, 0),
-            ["Grün"] = Color3.fromRGB(0, 255, 0),
-            ["Blau"] = Color3.fromRGB(0, 100, 255),
-            ["Gelb"] = Color3.fromRGB(255, 255, 0),
-            ["Pink"] = Color3.fromRGB(255, 0, 255),
-            ["Lila"] = Color3.fromRGB(150, 0, 255),
-            ["Orange"] = Color3.fromRGB(255, 150, 0),
-            ["Cyan"] = Color3.fromRGB(0, 255, 255)
-        }
-        ESPSettings.BoxColor = colors[Option] or Color3.fromRGB(255, 255, 255)
-    end
-})
-
--- ============================================
--- NAME ESP SECTION
--- ============================================
-
-local NameESPSection = VisualsTab:CreateSection("📝 Name ESP")
-
-local NameToggle = VisualsTab:CreateToggle({
-    Name = "Name ESP",
-    CurrentValue = true,
-    Flag = "NameToggle",
-    Callback = function(Value)
-        ESPSettings.NameEnabled = Value
-    end
-})
-
-local DisplayNameToggle = VisualsTab:CreateToggle({
-    Name = "Display Name anzeigen",
-    CurrentValue = true,
-    Flag = "DisplayNameToggle",
-    Callback = function(Value)
-        ESPSettings.ShowDisplayName = Value
-    end
-})
-
-local NameSizeSlider = VisualsTab:CreateSlider({
-    Name = "Name Größe",
-    Range = {10, 30},
-    Increment = 1,
-    CurrentValue = 16,
-    Flag = "NameSizeSlider",
-    Callback = function(Value)
-        ESPSettings.NameSize = Value
-    end
-})
-
--- ============================================
--- HEALTH ESP SECTION
--- ============================================
-
-local HealthESPSection = VisualsTab:CreateSection("❤️ Health ESP")
-
-local HealthToggle = VisualsTab:CreateToggle({
-    Name = "Health ESP",
-    CurrentValue = true,
-    Flag = "HealthToggle",
-    Callback = function(Value)
-        ESPSettings.HealthEnabled = Value
-    end
-})
-
-local HealthBarToggle = VisualsTab:CreateToggle({
-    Name = "Health Bar",
-    CurrentValue = true,
-    Flag = "HealthBarToggle",
-    Callback = function(Value)
-        ESPSettings.HealthBarEnabled = Value
-    end
-})
-
-local HealthTextToggle = VisualsTab:CreateToggle({
-    Name = "Health Text",
-    CurrentValue = true,
-    Flag = "HealthTextToggle",
-    Callback = function(Value)
-        ESPSettings.HealthTextEnabled = Value
-    end
-})
-
-local HealthBarPositionDropdown = VisualsTab:CreateDropdown({
-    Name = "Health Bar Position",
-    Options = {"Links", "Rechts", "Unten"},
-    CurrentOption = "Links",
-    Flag = "HealthBarPositionDropdown",
-    Callback = function(Option)
-        if Option == "Links" then
-            ESPSettings.HealthBarPosition = "Left"
-        elseif Option == "Rechts" then
-            ESPSettings.HealthBarPosition = "Right"
-        else
-            ESPSettings.HealthBarPosition = "Bottom"
+        if Option == "Teleport (Kopf wegbewegen)" then
+            AntiHeadsitMethod = "Teleport"
+        elseif Option == "Shake (Kopf schütteln)" then
+            AntiHeadsitMethod = "Shake"
+        elseif Option == "Both (Beides)" then
+            AntiHeadsitMethod = "Both"
         end
+        
+        Rayfield:Notify({
+            Title = "Methode geändert",
+            Content = Option,
+            Duration = 2,
+            Image = 4483362458
+        })
     end
 })
 
--- ============================================
--- DISTANCE ESP SECTION
--- ============================================
-
-local DistanceESPSection = VisualsTab:CreateSection("📏 Distance ESP")
-
-local DistanceToggle = VisualsTab:CreateToggle({
-    Name = "Distance ESP",
-    CurrentValue = true,
-    Flag = "DistanceToggle",
+local HeadTeleportSlider = HvHTab:CreateSlider({
+    Name = "Teleport Distanz",
+    Range = {3, 15},
+    Increment = 0.5,
+    CurrentValue = 5,
+    Flag = "HeadTeleportSlider",
     Callback = function(Value)
-        ESPSettings.DistanceEnabled = Value
+        HeadTeleportDistance = Value
     end
 })
 
--- ============================================
--- TRACER ESP SECTION
--- ============================================
-
-local TracerESPSection = VisualsTab:CreateSection("➡️ Tracer ESP")
-
-local TracerToggle = VisualsTab:CreateToggle({
-    Name = "Tracer ESP",
-    CurrentValue = false,
-    Flag = "TracerToggle",
-    Callback = function(Value)
-        ESPSettings.TracerEnabled = Value
-    end
-})
-
-local TracerPositionDropdown = VisualsTab:CreateDropdown({
-    Name = "Tracer Start Position",
-    Options = {"Oben", "Mitte", "Unten"},
-    CurrentOption = "Unten",
-    Flag = "TracerPositionDropdown",
-    Callback = function(Option)
-        if Option == "Oben" then
-            ESPSettings.TracerPosition = "Top"
-        elseif Option == "Mitte" then
-            ESPSettings.TracerPosition = "Middle"
-        else
-            ESPSettings.TracerPosition = "Bottom"
-        end
-    end
-})
-
--- ============================================
--- CHAMS (HIGHLIGHT) SECTION
--- ============================================
-
-local ChamsSection = VisualsTab:CreateSection("✨ Chams (Highlight)")
-
-local ChamsToggle = VisualsTab:CreateToggle({
-    Name = "Chams aktivieren",
-    CurrentValue = false,
-    Flag = "ChamsToggle",
-    Callback = function(Value)
-        ESPSettings.ChamsEnabled = Value
-    end
-})
-
-local ChamsFillColorDropdown = VisualsTab:CreateDropdown({
-    Name = "Chams Füllfarbe",
-    Options = {"Rot", "Grün", "Blau", "Gelb", "Pink", "Lila", "Orange", "Cyan"},
-    CurrentOption = "Rot",
-    Flag = "ChamsFillColorDropdown",
-    Callback = function(Option)
-        local colors = {
-            ["Rot"] = Color3.fromRGB(255, 0, 0),
-            ["Grün"] = Color3.fromRGB(0, 255, 0),
-            ["Blau"] = Color3.fromRGB(0, 100, 255),
-            ["Gelb"] = Color3.fromRGB(255, 255, 0),
-            ["Pink"] = Color3.fromRGB(255, 0, 255),
-            ["Lila"] = Color3.fromRGB(150, 0, 255),
-            ["Orange"] = Color3.fromRGB(255, 150, 0),
-            ["Cyan"] = Color3.fromRGB(0, 255, 255)
-        }
-        ESPSettings.ChamsFillColor = colors[Option]
-    end
-})
-
-local ChamsTransparencySlider = VisualsTab:CreateSlider({
-    Name = "Chams Transparenz",
-    Range = {0, 1},
+local TeleportIntervalSlider = HvHTab:CreateSlider({
+    Name = "Teleport Intervall (Sekunden)",
+    Range = {0.1, 2},
     Increment = 0.1,
-    CurrentValue = 0.5,
-    Flag = "ChamsTransparencySlider",
+    CurrentValue = 0.3,
+    Flag = "TeleportIntervalSlider",
     Callback = function(Value)
-        ESPSettings.ChamsFillTransparency = Value
+        TeleportInterval = Value
     end
 })
 
--- ============================================
--- ESP FUNKTIONEN
--- ============================================
-
-function InitializeESP()
-    for _, player in pairs(game.Players:GetPlayers()) do
-        if player ~= Player then
-            CreateESP(player)
-        end
+local ShakeIntensitySlider = HvHTab:CreateSlider({
+    Name = "Shake Intensität",
+    Range = {10, 50},
+    Increment = 5,
+    CurrentValue = 30,
+    Flag = "ShakeIntensitySlider",
+    Callback = function(Value)
+        ShakeIntensity = Value
     end
-    
-    game.Players.PlayerAdded:Connect(function(player)
-        if ESPSettings.Enabled then
-            CreateESP(player)
-        end
-    end)
-    
-    game:GetService("RunService").RenderStepped:Connect(function()
-        if ESPSettings.Enabled then
-            UpdateAllESP()
-        end
-    end)
-end
+})
 
-function CreateESP(player)
-    if not player or player == Player then return end
-    if ESPStorage[player] then return end
-    
-    local espObjects = {
-        Player = player,
-        Drawings = {},
-        Highlight = nil
-    }
-    
-    -- Box ESP
-    espObjects.Drawings.Box = {
-        Line1 = Drawing.new("Line"),
-        Line2 = Drawing.new("Line"),
-        Line3 = Drawing.new("Line"),
-        Line4 = Drawing.new("Line"),
-        Filled = Drawing.new("Square")
-    }
-    
-    -- Name ESP
-    espObjects.Drawings.Name = Drawing.new("Text")
-    espObjects.Drawings.Name.Center = true
-    espObjects.Drawings.Name.Outline = true
-    
-    -- Health ESP
-    espObjects.Drawings.Health = {
-        Bar = Drawing.new("Square"),
-        Background = Drawing.new("Square"),
-        Text = Drawing.new("Text")
-    }
-    espObjects.Drawings.Health.Text.Center = true
-    espObjects.Drawings.Health.Text.Outline = true
-    
-    -- Distance ESP
-    espObjects.Drawings.Distance = Drawing.new("Text")
-    espObjects.Drawings.Distance.Center = true
-    espObjects.Drawings.Distance.Outline = true
-    
-    -- Tracer ESP
-    espObjects.Drawings.Tracer = Drawing.new("Line")
-    
-    ESPStorage[player] = espObjects
-    
-    player.CharacterAdded:Connect(function(char)
-        wait(0.5)
-        if ESPSettings.ChamsEnabled then
-            AddChams(player)
-        end
-    end)
-    
-    if player.Character and ESPSettings.ChamsEnabled then
-        AddChams(player)
-    end
-end
-
-function AddChams(player)
-    if not player or not player.Character then return end
-    if not ESPStorage[player] then return end
-    
-    if ESPStorage[player].Highlight then
-        ESPStorage[player].Highlight:Destroy()
-    end
-    
-    local highlight = Instance.new("Highlight")
-    highlight.FillColor = ESPSettings.ChamsFillColor
-    highlight.OutlineColor = ESPSettings.ChamsOutlineColor
-    highlight.FillTransparency = ESPSettings.ChamsFillTransparency
-    highlight.OutlineTransparency = ESPSettings.ChamsOutlineTransparency
-    highlight.Adornee = player.Character
-    highlight.Parent = player.Character
-    
-    ESPStorage[player].Highlight = highlight
-end
-
-function UpdateAllESP()
-    for player, espData in pairs(ESPStorage) do
-        if player and player.Parent then
-            UpdateESP(player, espData)
+local AntiHeadsitToggle = HvHTab:CreateToggle({
+    Name = "Anti-Headsit aktivieren",
+    CurrentValue = false,
+    Flag = "AntiHeadsitToggle",
+    Callback = function(Value)
+        AntiHeadsitEnabled = Value
+        if Value then
+            StartAntiHeadsit()
+            Rayfield:Notify({
+                Title = "Anti-Headsit aktiviert",
+                Content = "Schutz vor Headsit aktiv",
+                Duration = 3,
+                Image = 4483362458
+            })
         else
-            RemoveESP(player)
+            StopAntiHeadsit()
+            Rayfield:Notify({
+                Title = "Anti-Headsit deaktiviert",
+                Content = "Schutz deaktiviert",
+                Duration = 3,
+                Image = 4483362458
+            })
         end
     end
-end
+})
 
-function UpdateESP(player, espData)
-    if not player.Character then
-        HideESP(espData)
+-- Info Section
+local AntiHeadsitInfoSection = HvHTab:CreateSection("ℹ️ Information")
+local AntiHeadsitInfoLabel = HvHTab:CreateLabel("💡 Teleport: Bewegt dich alle 0.1-2 Sekunden weg")
+local AntiHeadsitInfo2Label = HvHTab:CreateLabel("💡 Shake: Schüttelt deinen Kopf kontinuierlich")
+local AntiHeadsitInfo3Label = HvHTab:CreateLabel("💡 Both: Kombiniert beide für maximalen Schutz")
+local AntiHeadsitInfo4Label = HvHTab:CreateLabel("⚡ Tipp: 0.1-0.3 Sek = Sehr schnell | 0.5+ Sek = Langsamer")
+
+-- ============================================
+-- ANTI-HEADSIT FUNKTIONEN
+-- ============================================
+
+function StartAntiHeadsit()
+    if not Character or not HumanoidRootPart then
+        Rayfield:Notify({
+            Title = "Fehler",
+            Content = "Character nicht gefunden",
+            Duration = 3,
+            Image = 4483362458
+        })
         return
     end
     
-    local rootPart = player.Character:FindFirstChild("HumanoidRootPart")
-    local head = player.Character:FindFirstChild("Head")
-    local humanoid = player.Character:FindFirstChild("Humanoid")
-    
-    if not rootPart or not head then
-        HideESP(espData)
+    local Head = Character:FindFirstChild("Head")
+    if not Head then
+        Rayfield:Notify({
+            Title = "Fehler",
+            Content = "Kopf nicht gefunden",
+            Duration = 3,
+            Image = 4483362458
+        })
         return
     end
     
-    if ESPSettings.TeamCheck and player.Team == Player.Team then
-        HideESP(espData)
-        return
-    end
+    local lastTeleportTime = 0
     
-    local distance = (HumanoidRootPart.Position - rootPart.Position).Magnitude
-    if distance > ESPSettings.RenderDistance then
-        HideESP(espData)
-        return
-    end
-    
-    local rootPos, onScreen = workspace.CurrentCamera:WorldToViewportPoint(rootPart.Position)
-    
-    if not onScreen then
-        HideESP(espData)
-        return
-    end
-    
-    local size = player.Character:GetExtentsSize()
-    local topPos = (rootPart.CFrame * CFrame.new(0, size.Y / 2, 0)).Position
-    local bottomPos = (rootPart.CFrame * CFrame.new(0, -size.Y / 2, 0)).Position
-    
-    local topScreen = workspace.CurrentCamera:WorldToViewportPoint(topPos)
-    local bottomScreen = workspace.CurrentCamera:WorldToViewportPoint(bottomPos)
-    
-    local height = math.abs(topScreen.Y - bottomScreen.Y)
-    local width = height * 0.5
-    
-    -- Box ESP
-    if ESPSettings.BoxEnabled then
-        local box = espData.Drawings.Box
+    AntiHeadsitConnection = game:GetService("RunService").Heartbeat:Connect(function()
+        if not AntiHeadsitEnabled then return end
         
-        local topLeft = Vector2.new(rootPos.X - width / 2, rootPos.Y - height / 2)
-        local topRight = Vector2.new(rootPos.X + width / 2, rootPos.Y - height / 2)
-        local bottomLeft = Vector2.new(rootPos.X - width / 2, rootPos.Y + height / 2)
-        local bottomRight = Vector2.new(rootPos.X + width / 2, rootPos.Y + height / 2)
+        local Head = Character:FindFirstChild("Head")
+        if not Head then return end
         
-        box.Line1.Visible = true
-        box.Line1.From = topLeft
-        box.Line1.To = topRight
-        box.Line1.Color = ESPSettings.BoxColor
-        box.Line1.Thickness = ESPSettings.BoxThickness
+        local time = tick()
         
-        box.Line2.Visible = true
-        box.Line2.From = topRight
-        box.Line2.To = bottomRight
-        box.Line2.Color = ESPSettings.BoxColor
-        box.Line2.Thickness = ESPSettings.BoxThickness
-        
-        box.Line3.Visible = true
-        box.Line3.From = bottomRight
-        box.Line3.To = bottomLeft
-        box.Line3.Color = ESPSettings.BoxColor
-        box.Line3.Thickness = ESPSettings.BoxThickness
-        
-        box.Line4.Visible = true
-        box.Line4.From = bottomLeft
-        box.Line4.To = topLeft
-        box.Line4.Color = ESPSettings.BoxColor
-        box.Line4.Thickness = ESPSettings.BoxThickness
-        
-        if ESPSettings.BoxFilled then
-            box.Filled.Visible = true
-            box.Filled.Color = ESPSettings.BoxColor
-            box.Filled.Transparency = ESPSettings.BoxFilledTransparency
-            box.Filled.Position = topLeft
-            box.Filled.Size = Vector2.new(width, height)
-            box.Filled.Filled = true
-        else
-            box.Filled.Visible = false
-        end
-    else
-        for _, line in pairs(espData.Drawings.Box) do
-            line.Visible = false
-        end
-    end
-    
-    -- Name ESP
-    if ESPSettings.NameEnabled then
-        local nameText = espData.Drawings.Name
-        nameText.Visible = true
-        nameText.Text = ESPSettings.ShowDisplayName and player.DisplayName or player.Name
-        nameText.Position = Vector2.new(rootPos.X, rootPos.Y - height / 2 - 20)
-        nameText.Color = ESPSettings.NameColor
-        nameText.Size = ESPSettings.NameSize
-    else
-        espData.Drawings.Name.Visible = false
-    end
-    
-    -- Health ESP
-    if ESPSettings.HealthEnabled and humanoid then
-        local health = humanoid.Health
-        local maxHealth = humanoid.MaxHealth
-        local healthPercent = health / maxHealth
-        
-        if ESPSettings.HealthBarEnabled then
-            local barWidth = 3
-            local barHeight = height
-            
-            local barX, barY
-            if ESPSettings.HealthBarPosition == "Left" then
-                barX = rootPos.X - width / 2 - barWidth - 2
-                barY = rootPos.Y - height / 2
-            elseif ESPSettings.HealthBarPosition == "Right" then
-                barX = rootPos.X + width / 2 + 2
-                barY = rootPos.Y - height / 2
-            else
-                barX = rootPos.X - width / 2
-                barY = rootPos.Y + height / 2 + 2
-                barWidth = width
-                barHeight = 3
+        -- TELEPORT METHODE: Nach einstellbarem Intervall teleportieren
+        if AntiHeadsitMethod == "Teleport" or AntiHeadsitMethod == "Both" then
+            if time - lastTeleportTime >= TeleportInterval then
+                local randomOffset = Vector3.new(
+                    math.random(-HeadTeleportDistance, HeadTeleportDistance),
+                    0,
+                    math.random(-HeadTeleportDistance, HeadTeleportDistance)
+                )
+                HumanoidRootPart.CFrame = HumanoidRootPart.CFrame + randomOffset
+                lastTeleportTime = time
             end
+        end
+        
+        -- SHAKE METHODE: Durchgehend Kopf schütteln mit einstellbarer Intensität
+        if AntiHeadsitMethod == "Shake" or AntiHeadsitMethod == "Both" then
+            local shakeX = math.sin(time * ShakeIntensity) * 2
+            local shakeZ = math.cos(time * ShakeIntensity) * 2
             
-            espData.Drawings.Health.Background.Visible = true
-            espData.Drawings.Health.Background.Color = Color3.fromRGB(0, 0, 0)
-            espData.Drawings.Health.Background.Transparency = 0.5
-            espData.Drawings.Health.Background.Position = Vector2.new(barX, barY)
-            espData.Drawings.Health.Background.Size = Vector2.new(barWidth, barHeight)
-            espData.Drawings.Health.Background.Filled = true
-            
-            local healthColor = Color3.fromRGB(
-                math.floor((1 - healthPercent) * 255),
-                math.floor(healthPercent * 255),
-                0
+            HumanoidRootPart.CFrame = HumanoidRootPart.CFrame * CFrame.Angles(
+                math.rad(shakeX),
+                0,
+                math.rad(shakeZ)
             )
-            
-            espData.Drawings.Health.Bar.Visible = true
-            espData.Drawings.Health.Bar.Color = healthColor
-            espData.Drawings.Health.Bar.Transparency = 1
-            espData.Drawings.Health.Bar.Position = Vector2.new(barX, barY)
-            
-            if ESPSettings.HealthBarPosition == "Bottom" then
-                espData.Drawings.Health.Bar.Size = Vector2.new(barWidth * healthPercent, barHeight)
-            else
-                local currentBarHeight = barHeight * healthPercent
-                espData.Drawings.Health.Bar.Position = Vector2.new(barX, barY + (barHeight - currentBarHeight))
-                espData.Drawings.Health.Bar.Size = Vector2.new(barWidth, currentBarHeight)
-            end
-            espData.Drawings.Health.Bar.Filled = true
-        else
-            espData.Drawings.Health.Bar.Visible = false
-            espData.Drawings.Health.Background.Visible = false
         end
-        
-        if ESPSettings.HealthTextEnabled then
-            espData.Drawings.Health.Text.Visible = true
-            espData.Drawings.Health.Text.Text = math.floor(health) .. " HP"
-            espData.Drawings.Health.Text.Position = Vector2.new(rootPos.X, rootPos.Y + height / 2 + 5)
-            espData.Drawings.Health.Text.Color = Color3.fromRGB(255, 255, 255)
-            espData.Drawings.Health.Text.Size = 14
-        else
-            espData.Drawings.Health.Text.Visible = false
-        end
-    else
-        espData.Drawings.Health.Bar.Visible = false
-        espData.Drawings.Health.Background.Visible = false
-        espData.Drawings.Health.Text.Visible = false
-    end
-    
-    -- Distance ESP
-    if ESPSettings.DistanceEnabled then
-        espData.Drawings.Distance.Visible = true
-        espData.Drawings.Distance.Text = math.floor(distance) .. "m"
-        espData.Drawings.Distance.Position = Vector2.new(rootPos.X, rootPos.Y + height / 2 + 20)
-        espData.Drawings.Distance.Color = ESPSettings.DistanceColor
-        espData.Drawings.Distance.Size = 14
-    else
-        espData.Drawings.Distance.Visible = false
-    end
-    
-    -- Tracer ESP
-    if ESPSettings.TracerEnabled then
-        local tracerStart
-        local cam = workspace.CurrentCamera
-        
-        if ESPSettings.TracerPosition == "Top" then
-            tracerStart = Vector2.new(cam.ViewportSize.X / 2, 0)
-        elseif ESPSettings.TracerPosition == "Middle" then
-            tracerStart = Vector2.new(cam.ViewportSize.X / 2, cam.ViewportSize.Y / 2)
-        else
-            tracerStart = Vector2.new(cam.ViewportSize.X / 2, cam.ViewportSize.Y)
-        end
-        
-        espData.Drawings.Tracer.Visible = true
-        espData.Drawings.Tracer.From = tracerStart
-        espData.Drawings.Tracer.To = Vector2.new(rootPos.X, rootPos.Y)
-        espData.Drawings.Tracer.Color = ESPSettings.TracerColor
-        espData.Drawings.Tracer.Thickness = ESPSettings.TracerThickness
-    else
-        espData.Drawings.Tracer.Visible = false
-    end
-    
-    -- Chams Update
-    if ESPSettings.ChamsEnabled then
-        if not espData.Highlight and player.Character then
-            AddChams(player)
-        end
-        
-        if espData.Highlight then
-            espData.Highlight.FillColor = ESPSettings.ChamsFillColor
-            espData.Highlight.OutlineColor = ESPSettings.ChamsOutlineColor
-            espData.Highlight.FillTransparency = ESPSettings.ChamsFillTransparency
-            espData.Highlight.OutlineTransparency = ESPSettings.ChamsOutlineTransparency
-        end
-    else
-        if espData.Highlight then
-            espData.Highlight:Destroy()
-            espData.Highlight = nil
-        end
-    end
+    end)
 end
 
-function HideESP(espData)
-    for _, line in pairs(espData.Drawings.Box) do
-        line.Visible = false
-    end
-    
-    espData.Drawings.Name.Visible = false
-    espData.Drawings.Health.Bar.Visible = false
-    espData.Drawings.Health.Background.Visible = false
-    espData.Drawings.Health.Text.Visible = false
-    espData.Drawings.Distance.Visible = false
-    espData.Drawings.Tracer.Visible = false
-end
-
-function RemoveESP(player)
-    if not ESPStorage[player] then return end
-    
-    local espData = ESPStorage[player]
-    
-    for _, line in pairs(espData.Drawings.Box) do
-        line:Remove()
-    end
-    
-    espData.Drawings.Name:Remove()
-    espData.Drawings.Health.Bar:Remove()
-    espData.Drawings.Health.Background:Remove()
-    espData.Drawings.Health.Text:Remove()
-    espData.Drawings.Distance:Remove()
-    espData.Drawings.Tracer:Remove()
-    
-    if espData.Highlight then
-        espData.Highlight:Destroy()
-    end
-    
-    ESPStorage[player] = nil
-end
-
-function ClearAllESP()
-    for player, _ in pairs(ESPStorage) do
-        RemoveESP(player)
+function StopAntiHeadsit()
+    if AntiHeadsitConnection then
+        AntiHeadsitConnection:Disconnect()
+        AntiHeadsitConnection = nil
     end
 end
 
