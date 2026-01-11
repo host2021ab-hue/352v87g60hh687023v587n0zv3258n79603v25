@@ -116,7 +116,7 @@ local WalkSpeedToggle = MainTab:CreateToggle({
 
 local WalkSpeedSlider = MainTab:CreateSlider({
     Name = "Walkspeed Wert",
-    Range = {16, 200},
+    Range = {16, 300},
     Increment = 1,
     CurrentValue = 50,
     Flag = "WalkSpeedSlider",
@@ -157,12 +157,50 @@ local FlyToggle = MainTab:CreateToggle({
 
 local FlySpeedSlider = MainTab:CreateSlider({
     Name = "Fly Speed",
-    Range = {10, 200},
+    Range = {10, 300},
     Increment = 1,
     CurrentValue = 50,
     Flag = "FlySpeedSlider",
     Callback = function(Value)
         FlySpeed = Value
+    end
+})
+
+
+
+local FlySection = MainTab:CreateSection("Fly Controls")
+
+local AntiCheatBypassToggle = MainTab:CreateToggle({
+    Name = "Anti-Cheat Bypass (Schwimm-Modus)",
+    CurrentValue = false,
+    Flag = "AntiCheatBypassToggle",
+    Callback = function(Value)
+        AntiCheatBypass = Value
+        local player = game.Players.LocalPlayer
+        local character = player.Character or player.CharacterAdded:Wait()
+        local humanoid = character:WaitForChild("Humanoid")
+        
+        if Value then
+            -- Setze Humanoid in Swimming State (State 4)
+            humanoid:ChangeState(Enum.HumanoidStateType.Swimming)
+            
+            Rayfield:Notify({
+                Title = "Anti-Cheat Bypass aktiviert",
+                Content = "Schwimm-Animation wird beim Fliegen verwendet",
+                Duration = 3,
+                Image = 4483362458
+            })
+        else
+            -- Setze Humanoid zurück in normalen State
+            humanoid:ChangeState(Enum.HumanoidStateType.RunningNoPhysics)
+            
+            Rayfield:Notify({
+                Title = "Anti-Cheat Bypass deaktiviert",
+                Content = "Normaler Fly-Modus",
+                Duration = 3,
+                Image = 4483362458
+            })
+        end
     end
 })
 
@@ -2132,7 +2170,7 @@ local BangModeDropdown = TrollTab:CreateDropdown({
 
 local BangSpeedSlider = TrollTab:CreateSlider({
     Name = "Bang Geschwindigkeit",
-    Range = {0.3, 3},
+    Range = {0.01, 3},
     Increment = 0.1,
     CurrentValue = 1,
     Flag = "BangSpeedSlider",
