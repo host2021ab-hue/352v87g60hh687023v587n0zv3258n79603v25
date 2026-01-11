@@ -168,41 +168,7 @@ local FlySpeedSlider = MainTab:CreateSlider({
 
 
 
-local FlySection = MainTab:CreateSection("Fly Controls")
 
-local AntiCheatBypassToggle = MainTab:CreateToggle({
-    Name = "Anti-Cheat Bypass (Schwimm-Modus)",
-    CurrentValue = false,
-    Flag = "AntiCheatBypassToggle",
-    Callback = function(Value)
-        AntiCheatBypass = Value
-        local player = game.Players.LocalPlayer
-        local character = player.Character or player.CharacterAdded:Wait()
-        local humanoid = character:WaitForChild("Humanoid")
-        
-        if Value then
-            -- Setze Humanoid in Swimming State (State 4)
-            humanoid:ChangeState(Enum.HumanoidStateType.Swimming)
-            
-            Rayfield:Notify({
-                Title = "Anti-Cheat Bypass aktiviert",
-                Content = "Schwimm-Animation wird beim Fliegen verwendet",
-                Duration = 3,
-                Image = 4483362458
-            })
-        else
-            -- Setze Humanoid zurück in normalen State
-            humanoid:ChangeState(Enum.HumanoidStateType.RunningNoPhysics)
-            
-            Rayfield:Notify({
-                Title = "Anti-Cheat Bypass deaktiviert",
-                Content = "Normaler Fly-Modus",
-                Duration = 3,
-                Image = 4483362458
-            })
-        end
-    end
-})
 
 -- ============================================
 -- TARGET TAB
