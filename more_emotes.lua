@@ -1,7 +1,7 @@
 --- Keybind to open for pc is "comma" -> " , "
 
 -- Made by Gi#7331
- local env=getgenv()
+local env=getgenv()
 if env.LastExecuted and tick()-env.LastExecuted<30 then return end
 env.LastExecuted=tick()
 
@@ -1986,6 +1986,7 @@ game:GetService("StarterGui"):SetCore("SendNotification",{
                 Text = "Emotes gui is here!",
 
                  Duration = 10})
+
 
 
 
