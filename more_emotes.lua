@@ -1,7 +1,7 @@
 --- Keybind to open for pc is "comma" -> " , "
 
 -- Made by Gi#7331
-local env=getgenv()
+ local env=getgenv()
 if env.LastExecuted and tick()-env.LastExecuted<30 then return end
 env.LastExecuted=tick()
 
@@ -1402,7 +1402,7 @@ local function addEmote(name, id, price, date)
     })
 end
 
-
+addEmote("stretch like this?", 126017588998166, 75, "Aug 08, 2025")
 addEmote("Stranger-Things-Vecna-Kill-Emote", 80981189893654, 39, "Aug 08, 2025")
 addEmote("PARROT PARTY DANCE", 121067808279598, 39, "Aug 08, 2025")
 addEmote("Dance n' Prance", 99031916674986, 39, "Aug 08, 2025")
@@ -1986,7 +1986,6 @@ game:GetService("StarterGui"):SetCore("SendNotification",{
                 Text = "Emotes gui is here!",
 
                  Duration = 10})
-
 
 
 
