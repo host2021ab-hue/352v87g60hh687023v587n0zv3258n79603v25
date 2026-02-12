@@ -1402,6 +1402,8 @@ local function addEmote(name, id, price, date)
     })
 end
 
+
+addEmote("MEGA POOP SNIFF", 82904146092287, 50, "Aug 08, 2025")
 addEmote("stretch like this?", 126017588998166, 75, "Aug 08, 2025")
 addEmote("Stranger-Things-Vecna-Kill-Emote", 80981189893654, 39, "Aug 08, 2025")
 addEmote("PARROT PARTY DANCE", 121067808279598, 39, "Aug 08, 2025")
